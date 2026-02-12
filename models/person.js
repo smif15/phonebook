@@ -20,6 +20,9 @@ personSchema.set('toJSON', {
     }
 })
 
-module.exports = mongo.model('Person', personSchema);
+module.exports = {
+    Person : mongo.model('Person', personSchema),
+    url
+}
 
 
