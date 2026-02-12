@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const path = require('path');
-const { Person, url } = require('./models/person');
+const Person = require('./models/person');
 
 const PORT = process.env.PORT;
 const app = new express();
@@ -30,7 +30,6 @@ app.use(
 }));
 
 app.get('/api/persons', (req, res, next) => {
-    console.log('connecting to ', url);
     Person.find({}).then(persons => {
         res.json(persons);
     })
