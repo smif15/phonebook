@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const path = require('path');
-const Person = require('./models/person');
+const { Person } = require('./models/person');
 
 const PORT = process.env.PORT;
 const app = new express();
