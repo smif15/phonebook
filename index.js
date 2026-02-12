@@ -1,34 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
-const cors = require('cors');
 const path = require('path');
+const Person = require('./models/person');
 
-let persons = [
-    { 
-      "id": "1",
-      "name": "Arto Hellas", 
-      "number": "040-123456"
-    },
-    { 
-      "id": "2",
-      "name": "Ada Lovelace", 
-      "number": "39-44-5323523"
-    },
-    { 
-      "id": "3",
-      "name": "Dan Abramov", 
-      "number": "12-43-234345"
-    },
-    { 
-      "id": "4",
-      "name": "Mary Poppendieck", 
-      "number": "39-23-6423122"
-    }
-];
-
+const PORT = process.env.PORT;
 const app = new express();
-
-app.use(cors());
 
 app.use(express.static(path.join(__dirname, 'dist')));
 
@@ -37,7 +14,7 @@ app.use((req, res, next) => {
     next();
 })
 
-
+//middleware json-parser: diletakkan di awal untuk mentransform body ke dalam json shg dapat digunakan
 app.use(express.json())
 
 app.use(
@@ -52,72 +29,114 @@ app.use(
     ].join(' ')
 }));
 
-app.get('/api/persons', (req, res) => {
-    res.json(persons);
+app.get('/api/persons', (req, res, next) => {
+    Person.find({}).then(persons => {
+        res.json(persons);
+    })
+    .catch(err => next(err));
 });
 
-app.get('/api/persons/:id', (req, res) => {
+app.get('/api/persons/:id', (req, res, next) => {
     const id = req.params.id;
-    const person = persons.find(p => p.id === id);
-
-    if(person){
-        res.json(person);
-    } else {
-        res.status(404).json({message: 'Data isn\'t exist'});
-    }
+    Person.findById(id).then(person => {
+        if(person){
+            res.json(person)
+        } else {
+            res.status(404).json({message: 'Data isn\'t exist'});
+        }
+    }).catch(err => next(err));
 });
 
-app.get('/info', (req, res) => {
-    const countPersons = persons.length;
-    res.send(`
+app.get('/info', (req, res, next) => {
+    Person.countDocuments().then(countPersons => {
+        res.send(`
         <p>Phonebook has info for ${countPersons} people</p>
 
         <p>${req.start}</p>
         `);
-})
+    })
+    .catch(err => next(err));
+});
 
-app.delete('/api/persons/:id', (req, res) => {
+app.delete('/api/persons/:id', (req, res, next) => {
     const id = req.params.id;
 
-    const newPersons = persons.filter(p => p.id !== id);
-
-    if(newPersons.length === persons.length){
-        res.status(400).json({message : 'Data isn\'t exists'});
-    } else{
-        persons = newPersons;
-        res.json({message: 'Data has been deleted'});
-    }
+    Person.findByIdAndDelete(id)
+        .then(deletePerson => {
+            if(deletePerson) {
+                res.json({message: `Data who has id ${id} has been deleted`});
+            } else {
+                res.status(404).json({message : 'Data isn\'t exists'});
+            }
+        })
+        .catch(err => next(err));
 })
 
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
     const body = req.body;
 
-    const id = Math.floor(Math.random() * 200000000);
-
     if(!body.name || !body.number) {
-        res.status(400).json({error: "Invalid data"});
+        res.status(400).json({message: "Invalid data"});
         return;
     }
 
-    if(persons.find(p => p.name === body.name)){
-        res.status(400).json({error: "name has been already exist"});
+    Person.find({name: body.name}).then(person => {
+        //ini gausah gpp aslinya
+        if(person.length !== 0){
+            res.status(409).json({message : `Data ${body.name} is already added`});
+        } else {
+            const newPerson = new Person( {
+                name: body.name, number: body.number
+            });
+
+            newPerson.save().then(savedPerson => res.json(savedPerson))
+                .catch(err => next(err));
+        }
+    })
+
+});
+
+app.put('/api/persons/:id', (req, res, next) => {
+    const { name, number } = req.body;
+    const id = req.params.id;
+
+    if(!name || !number) {
+        res.status(400).json({message: "Invalid data"});
         return;
     }
 
-    const newPerson = {
-        id: id.toString(), name: body.name, number: body.number
-    }
+    Person.findById(id).then(person => {
+        if(!person) {
+            res.status(404).json({message: "Data has not exist"})
+        }
+        person.name = name;
+        person.number = number;
+        person.save().then(updatedPerson => res.json(updatedPerson))
+            .catch(err => next(err));
 
-    persons.push(newPerson);
-    res.json(newPerson);
-})
+    })
+    .catch(err => next(err));
+});
 
+//middleware path undefined : diletakkan setelah pendefinisian semua routes selesai
 app.use((req, res) => {
-    res.status(404).json({error: 'unknown endpoint'});
+    res.status(404).json({message: 'unknown endpoint'});
+})
+
+//middleware menangani error : diletakkan di akhir
+app.use((err,req,res,next) => {
+    console.error('ERROR : ', err);
+
+    if(err.name === 'CastError'){
+        return res.status(400).send({'message' : 'malformatted id'});
+    } else {
+        return res.status(400).send({'message' : 'error in client side'});
+    }
+
+    next(err);
 })
 
 
-const PORT = 3001;
 app.listen(PORT, () => {
     console.log(`Aplikasi berjalan pada port ${PORT}`);
 });
