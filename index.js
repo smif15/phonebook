@@ -75,11 +75,6 @@ app.delete('/api/persons/:id', (req, res, next) => {
 app.post('/api/persons', (req, res, next) => {
     const body = req.body;
 
-    if(!body.name || !body.number) {
-        res.status(400).json({message: "Invalid data"});
-        return;
-    }
-
     Person.find({name: body.name}).then(person => {
         //ini gausah gpp aslinya
         if(person.length !== 0){
@@ -99,11 +94,6 @@ app.post('/api/persons', (req, res, next) => {
 app.put('/api/persons/:id', (req, res, next) => {
     const { name, number } = req.body;
     const id = req.params.id;
-
-    if(!name || !number) {
-        res.status(400).json({message: "Invalid data"});
-        return;
-    }
 
     Person.findById(id).then(person => {
         if(!person) {
@@ -128,10 +118,14 @@ app.use((err,req,res,next) => {
     console.error('ERROR : ', err);
 
     if(err.name === 'CastError'){
-        return res.status(400).send({'message' : 'malformatted id'});
-    } else {
-        return res.status(400).send({'message' : 'error in client side'});
+        return res.status(400).send({message : 'malformatted id'});
     }
+    else if (err.name === 'ValidationError') {
+        return res.status(400).send({message : err.message});
+    }
+    else {
+        return res.status(400).send({message : 'error in client side'});
+    } 
 
     next(err);
 })
