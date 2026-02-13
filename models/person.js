@@ -16,12 +16,12 @@ const personSchema = new mongo.Schema({
     },
     number: {
         type: String,
-        // validate: {
-        //     validator: function(v) {
-        //         return /\d{3}-\d{3}-\d{4}/.test(v);
-        //     },
-        //     message: props = `${props.value} is not a valid phone number`
-        // },
+        validate: {
+            validator: function(v) {
+                return /^\d{3}-\d{3}-\d{4}$/.test(v);
+            },
+            message: props => `${props.value} is not a valid phone number`
+        },
         minLength: [8, 'The minimum length of number phone is 8'],
         required: [true, 'User number phone is required']
     }
